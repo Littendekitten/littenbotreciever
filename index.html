@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LittenBot Receiver</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: sans-serif;
+            text-align: center;
+            padding: 50px 20px;
+        }
+        #status {
+            font-size: 1.5rem;
+            color: #ff5722;
+            margin: 20px 0;
+        }
+        #startBtn {
+            background-color: #ff5722;
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            font-size: 1.8rem;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 87, 34, 0.4);
+        }
+        #startBtn.active {
+            background-color: #4CAF50;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🤖 LITTENBOT ONTVANGER 🤖</h1>
+    <p>Zet je geluid hard aan!</p>
+    
+    <button id="startBtn">Activeer LittenBot</button>
+    <div id="status">Status: Stand-by (druk op start)</div>
+
+    <audio id="silentAudio" loop src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" style="display:none;"></audio>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
+
+        // Jouw unieke Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyB5wRKFeQCXalqe61weyHDo6hq9THA6UT8",
+            authDomain: "littenbot-app.firebaseapp.com",
+            databaseURL: "https://littenbot-app-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "littenbot-app",
+            storageBucket: "littenbot-app.firebasestorage.app",
+            messagingSenderId: "156579405931",
+            appId: "1:156579405931:web:fcb2c86a7f80a9acf4912e",
+            measurementId: "G-L33K1EKJZC"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        const startBtn = document.getElementById('startBtn');
+        const silentAudio = document.getElementById('silentAudio');
+        const statusDiv = document.getElementById('status');
+
+        let geactiveerd = false;
+        let laatstGelezenTijd = 0;
+
+        // Activeer de audio-omgeving na een klik (eis van Android)
+        startBtn.addEventListener('click', () => {
+            silentAudio.volume = 0.01; // Bijna onhoorbaar zacht bep-geluidje
+            silentAudio.play();
+            geactiveerd = true;
+            
+            startBtn.classList.add('active');
+            startBtn.innerText = "LittenBot is Online!";
+            statusDiv.innerText = "Luistert naar OIO...";
+            statusDiv.style.color = "#4CAF50";
+
+            speak("LittenBot opgestart. Ik luister naar O I O!");
+        });
+
+        // Luister live naar wijzigingen in de database
+        onValue(ref(db, 'littenbot/commando'), (snapshot) => {
+            const data = snapshot.val();
+            if (!data || !geactiveerd) return;
+
+            // Zorg dat we oude commando's van de vorige speelsessie niet opnieuw uitspreken
+            if (data.tijd > laatstGelezenTijd) {
+                laatstGelezenTijd = data.tijd;
+                verwerkCommando(data.actie);
+            }
+        });
+
+        function verwerkCommando(actie) {
+            if (actie === 'dans') {
+                speak("Piep boop! LittenBot activeert de robotdans. Doe met mij mee op mijn rug!");
+            } else if (actie === 'papa') {
+                speak("LittenBot waarschuwing! Loop direct naar papa toe.");
+            } else if (actie === 'mama') {
+                speak("LittenBot waarschuwing! Loop direct naar mama toe.");
+            } else if (actie === 'rug') {
+                speak("Snel! Spring op mijn rug voor een ritje!");
+            }
+        }
+
+        // De Text-to-Speech functie met Nederlandse stem force-instelling
+        function speak(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Omdat je telefoon in het Engels staat, zoeken we expliciet naar een NL-stem
+            const voices = window.speechSynthesis.getVoices();
+            const nlVoice = voices.find(voice => voice.lang.startsWith('nl'));
+            
+            if (nlVoice) {
+                utterance.voice = nlVoice;
+            }
+            utterance.lang = 'nl-NL'; 
+            utterance.rate = 1.0; // Snelheid van de stem
+            
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // Zorg dat de stemmenlijst geladen is (soms laadt dit asynchroon)
+        window.speechSynthesis.onvoiceschanged = () => {
+            console.log("Stemmen geladen");
+        };
+    </script>
+</body>
+</html>
