@@ -28,7 +28,6 @@
             cursor: pointer;
             box-shadow: 0 4px 15px rgba(255, 87, 34, 0.4);
         }
-        /* Verborgen klasse voor als de bot actief is */
         .hidden {
             display: none !important;
         }
@@ -53,7 +52,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
         import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-database.js";
 
-        // Jouw unieke Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyB5wRKFeQCXalqe61weyHDo6hq9THA6UT8",
             authDomain: "littenbot-app.firebaseapp.com",
@@ -77,62 +75,61 @@
         let laatstGelezenTijd = 0;
         let wakeLock = null;
 
-        // Functie om te zorgen dat het scherm NIET uitgaat (Wake Lock)
         async function activeerWakeLock() {
             try {
                 if ('wakeLock' in navigator) {
                     wakeLock = await navigator.wakeLock.request('screen');
-                    console.log('Scherm blijft geforceerd aan!');
                 }
             } catch (err) {
                 console.log('Wake Lock mislukt: ', err.message);
             }
         }
 
-        // Activeer LittenBot na klik
         startBtn.addEventListener('click', async () => {
-            silentAudio.volume = 0.01; // Bijna onhoorbaar zacht beletje
+            silentAudio.volume = 0.01;
             silentAudio.play();
             geactiveerd = true;
             
-            // Scherm wakker houden inschakelen
             await activeerWakeLock();
             
-            // Verberg de knoppen zodat je niks per ongeluk indrukt in je zak
             setupScreen.classList.add('hidden');
             activeScreen.classList.remove('hidden');
-
-            // Maak de hele achtergrond gitzwart (OLED-besparing)
             document.body.style.backgroundColor = "#000000";
 
             speak("LittenBot opgestart. Ik luister naar O I O!");
         });
 
-        // Luister live naar de database
         onValue(ref(db, 'littenbot/commando'), (snapshot) => {
             const data = snapshot.val();
             if (!data || !geactiveerd) return;
 
-            // Alleen nieuwe acties uitspreken
             if (data.tijd > laatstGelezenTijd) {
                 laatstGelezenTijd = data.tijd;
                 verwerkCommando(data.actie);
             }
         });
 
+        // HIER WORDEN DE NIEUWE COMMANDO'S VERWERKT EN UITGESPROKEN
         function verwerkCommando(actie) {
             if (actie === 'dans') {
-                speak("Piep boop! LittenBot activeert de robotdans. Doe met mij mee op mijn rug!");
+                speak("Piep boop! LittenBot activeert de robotdans. Kggzt, kggzt!");
+            } else if (actie === 'oio_dans') {
+                speak("De O I O-dans is geactiveerd! Shake die robot-heupen!");
             } else if (actie === 'papa') {
                 speak("LittenBot waarschuwing! Loop direct naar papa toe.");
             } else if (actie === 'mama') {
                 speak("LittenBot waarschuwing! Loop direct naar mama toe.");
+            } else if (actie === 'naar_oio') {
+                speak("LittenBot zoekt O I O. Ik kom nu direct naar je toe!");
             } else if (actie === 'rug') {
                 speak("Snel! Spring op mijn rug voor een ritje!");
+            } else if (actie === 'volg_oio') {
+                speak("Doelwit vergrendeld! Ik volg O I O overal waar ze heen gaat.");
+            } else if (actie === 'stop_volg_oio') {
+                speak("Ik stop met het volgen van O I O. Systeem op stand-by.");
             }
         }
 
-        // Text-to-Speech met Nederlandse force
         function speak(text) {
             const utterance = new SpeechSynthesisUtterance(text);
             const voices = window.speechSynthesis.getVoices();
@@ -147,7 +144,6 @@
             window.speechSynthesis.speak(utterance);
         }
 
-        // Zorg dat de Wake Lock hersteld wordt als je de browser minimaliseert en weer opent
         document.addEventListener('visibilitychange', async () => {
             if (wakeLock !== null && document.visibilityState === 'visible') {
                 await activeerWakeLock();
