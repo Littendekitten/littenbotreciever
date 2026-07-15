@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LittenBot Receiver</title>
-    <link rel="icon" type="image/png" href="/favicon.png">
     <style>
         body {
             background-color: #121212;
@@ -12,6 +11,7 @@
             font-family: sans-serif;
             text-align: center;
             padding: 50px 20px;
+            transition: background-color 0.5s;
         }
         #status {
             font-size: 1.5rem;
@@ -28,19 +28,24 @@
             cursor: pointer;
             box-shadow: 0 4px 15px rgba(255, 87, 34, 0.4);
         }
-        #startBtn.active {
-            background-color: #4CAF50;
-            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+        /* Verborgen klasse voor als de bot actief is */
+        .hidden {
+            display: none !important;
         }
     </style>
 </head>
 <body>
 
-    <h1>🤖 LITTENBOT ONTVANGER 🤖</h1>
-    <p>Zet je geluid hard aan!</p>
-    
-    <button id="startBtn">Activeer LittenBot</button>
-    <div id="status">Status: Stand-by (druk op start)</div>
+    <div id="setup-screen">
+        <h1>🤖 LITTENBOT ONTVANGER 🤖</h1>
+        <p>Zet je geluid op maximaal!</p>
+        <button id="startBtn">Activeer LittenBot</button>
+        <div id="status">Status: Stand-by (druk op start)</div>
+    </div>
+
+    <div id="active-screen" class="hidden">
+        <p style="color: #222; font-size: 0.8rem;">LittenBot is actief. Scherm is vergrendeld via software.</p>
+    </div>
 
     <audio id="silentAudio" loop src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" style="display:none;"></audio>
 
@@ -65,31 +70,50 @@
 
         const startBtn = document.getElementById('startBtn');
         const silentAudio = document.getElementById('silentAudio');
-        const statusDiv = document.getElementById('status');
+        const setupScreen = document.getElementById('setup-screen');
+        const activeScreen = document.getElementById('active-screen');
 
         let geactiveerd = false;
         let laatstGelezenTijd = 0;
+        let wakeLock = null;
 
-        // Activeer de audio-omgeving na een klik (eis van Android)
-        startBtn.addEventListener('click', () => {
-            silentAudio.volume = 0.01; // Bijna onhoorbaar zacht bep-geluidje
+        // Functie om te zorgen dat het scherm NIET uitgaat (Wake Lock)
+        async function activeerWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('Scherm blijft geforceerd aan!');
+                }
+            } catch (err) {
+                console.log('Wake Lock mislukt: ', err.message);
+            }
+        }
+
+        // Activeer LittenBot na klik
+        startBtn.addEventListener('click', async () => {
+            silentAudio.volume = 0.01; // Bijna onhoorbaar zacht beletje
             silentAudio.play();
             geactiveerd = true;
             
-            startBtn.classList.add('active');
-            startBtn.innerText = "LittenBot is Online!";
-            statusDiv.innerText = "Luistert naar OIO...";
-            statusDiv.style.color = "#4CAF50";
+            // Scherm wakker houden inschakelen
+            await activeerWakeLock();
+            
+            // Verberg de knoppen zodat je niks per ongeluk indrukt in je zak
+            setupScreen.classList.add('hidden');
+            activeScreen.classList.remove('hidden');
+
+            // Maak de hele achtergrond gitzwart (OLED-besparing)
+            document.body.style.backgroundColor = "#000000";
 
             speak("LittenBot opgestart. Ik luister naar O I O!");
         });
 
-        // Luister live naar wijzigingen in de database
+        // Luister live naar de database
         onValue(ref(db, 'littenbot/commando'), (snapshot) => {
             const data = snapshot.val();
             if (!data || !geactiveerd) return;
 
-            // Zorg dat we oude commando's van de vorige speelsessie niet opnieuw uitspreken
+            // Alleen nieuwe acties uitspreken
             if (data.tijd > laatstGelezenTijd) {
                 laatstGelezenTijd = data.tijd;
                 verwerkCommando(data.actie);
@@ -108,11 +132,9 @@
             }
         }
 
-        // De Text-to-Speech functie met Nederlandse stem force-instelling
+        // Text-to-Speech met Nederlandse force
         function speak(text) {
             const utterance = new SpeechSynthesisUtterance(text);
-            
-            // Omdat je telefoon in het Engels staat, zoeken we expliciet naar een NL-stem
             const voices = window.speechSynthesis.getVoices();
             const nlVoice = voices.find(voice => voice.lang.startsWith('nl'));
             
@@ -120,12 +142,18 @@
                 utterance.voice = nlVoice;
             }
             utterance.lang = 'nl-NL'; 
-            utterance.rate = 1.0; // Snelheid van de stem
+            utterance.rate = 1.0;
             
             window.speechSynthesis.speak(utterance);
         }
 
-        // Zorg dat de stemmenlijst geladen is (soms laadt dit asynchroon)
+        // Zorg dat de Wake Lock hersteld wordt als je de browser minimaliseert en weer opent
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                await activeerWakeLock();
+            }
+        });
+
         window.speechSynthesis.onvoiceschanged = () => {
             console.log("Stemmen geladen");
         };
