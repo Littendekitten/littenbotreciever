@@ -1,0 +1,15 @@
+{
+  "name": "LittenBot Ontvanger",
+  "short_name": "LittenBot",
+  "description": "Ontvangt commando's en laat LittenBot praten.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#121212",
+  "theme_color": "#121212",
+  "icons": [
+    { "src": "favicon.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "favicon.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
