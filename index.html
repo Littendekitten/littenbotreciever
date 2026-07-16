@@ -46,7 +46,9 @@
         <p style="color: #222; font-size: 0.8rem;">LittenBot is actief. Scherm is vergrendeld via software.</p>
     </div>
 
-    <audio id="silentAudio" loop src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" style="display:none;"></audio>
+    <!-- Stille lus (geen geluid) die alleen dient om de audio-sessie actief te houden,
+         zodat het scherm niet in slaap valt. Dit is een minimaal, volledig stil WAV-bestand. -->
+    <audio id="silentAudio" loop src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=" style="display:none;"></audio>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
@@ -86,12 +88,16 @@
         }
 
         startBtn.addEventListener('click', async () => {
-            silentAudio.volume = 0.01;
-            silentAudio.play();
+            try {
+                silentAudio.volume = 0.01;
+                await silentAudio.play();
+            } catch (err) {
+                console.log('Stille audio kon niet starten: ', err.message);
+            }
+
             geactiveerd = true;
-            
             await activeerWakeLock();
-            
+
             setupScreen.classList.add('hidden');
             activeScreen.classList.remove('hidden');
             document.body.style.backgroundColor = "#000000";
@@ -127,21 +133,31 @@
                 speak("Doelwit vergrendeld! Ik volg O I O overal waar ze heen gaat.");
             } else if (actie === 'stop_volg_oio') {
                 speak("Ik stop met het volgen van O I O. Systeem op stand-by.");
+            } else {
+                console.log('Onbekend commando ontvangen: ', actie);
             }
         }
 
         function speak(text) {
-            const utterance = new SpeechSynthesisUtterance(text);
-            const voices = window.speechSynthesis.getVoices();
-            const nlVoice = voices.find(voice => voice.lang.startsWith('nl'));
-            
-            if (nlVoice) {
-                utterance.voice = nlVoice;
+            try {
+                // Onderbreek een lopende zin zodra er een nieuw commando binnenkomt,
+                // zodat LittenBot altijd meteen op het laatste drukje reageert.
+                window.speechSynthesis.cancel();
+
+                const utterance = new SpeechSynthesisUtterance(text);
+                const voices = window.speechSynthesis.getVoices();
+                const nlVoice = voices.find(voice => voice.lang.startsWith('nl'));
+
+                if (nlVoice) {
+                    utterance.voice = nlVoice;
+                }
+                utterance.lang = 'nl-NL';
+                utterance.rate = 1.0;
+
+                window.speechSynthesis.speak(utterance);
+            } catch (err) {
+                console.log('Spraak mislukt: ', err.message);
             }
-            utterance.lang = 'nl-NL'; 
-            utterance.rate = 1.0;
-            
-            window.speechSynthesis.speak(utterance);
         }
 
         document.addEventListener('visibilitychange', async () => {
