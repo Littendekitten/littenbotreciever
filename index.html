@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LittenBot Receiver</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
+    <meta name="theme-color" content="#121212">
     <style>
         body {
             background-color: #121212;
@@ -169,6 +173,17 @@
         window.speechSynthesis.onvoiceschanged = () => {
             console.log("Stemmen geladen");
         };
+
+        // Service worker registreren: dit + het manifest.json is wat Chrome nodig
+        // heeft om "Toevoegen aan startscherm" te vervangen door "App installeren"
+        // in het driepuntjes-menu.
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch(err => {
+                    console.log('Service worker registratie mislukt: ', err.message);
+                });
+            });
+        }
     </script>
 </body>
 </html>
